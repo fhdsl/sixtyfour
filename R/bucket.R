@@ -261,6 +261,133 @@ aws_bucket_upload <- function(
   s3_path(bucket)
 }
 
+bucket_name <- function(x) {
+  first(fs::path_split(first(x))[[1]])
+}
+
+#' @importFrom fs path_split
+#' @importFrom purrr map_vec
+remote_has_keys <- function(x) {
+  paths <- fs::path_split(x)
+  all(map_vec(paths, \(p) length(p) > 1))
+}
+
+#' @importFrom fs is_dir dir_ls
+#' @importFrom purrr list_c
+explode_file_paths <- function(path) {
+  if (any(fs::is_dir(path))) {
+    path <- map(path, \(p) {
+      if (fs::is_dir(p)) {
+        fs::dir_ls(p)
+      } else {
+        p
+      }
+    }) %>%
+      list_c()
+  }
+  return(unname(unclass(path)))
+}
+
+#' Magically upload a mix of files and directories into a bucket
+#'
+#' @importFrom purrr map2
+#' @export
+#' @param path (character) one or more file paths to add to
+#' the `bucket`. required. can include directories or files
+#' @param remote (character) a vector of paths to use to upload
+#' files in `path`. the bucket name is determined from this param.
+#' if the vector passed in is length>1 then the base path component
+#' must all be the same. required
+#' @inheritParams aws_file_copy
+#' @param ... named params passed on to
+#' [put_object](https://www.paws-r-sdk.com/docs/s3_put_object/)
+#' @section What is magical:
+#' - Exits early if folder or files do not exist
+#' - Creates the bucket if it does not exist
+#' - Adds files to the bucket, figuring out the key to use from
+#' the supplied path
+#' - Function is vectoried for the `path` argument; you can
+#' pass in many paths
+#' @family buckets
+#' @family magicians
+#' @return (character) a vector of remote s3 paths where your
+#' files are located
+#' @examplesIf interactive()
+#' # single file, single remote path
+#' bucket <- random_string("bucket")
+#' demo_rds_file <- file.path(system.file(), "Meta/demo.rds")
+#' six_bucket_upload(path = demo_rds_file, remote = bucket)
+#'
+#' ## a file and a directory - with a single remote path
+#' bucket <- random_string("bucket")
+#' library(fs)
+#' tdir <- path(path_temp(), "mytmp")
+#' dir_create(tdir)
+#' purrr::map(letters, \(l) file_create(path(tdir, l)))
+#' six_bucket_upload(path = c(demo_rds_file, tdir), remote = bucket)
+#'
+#' ## two files - two values passed to remote path
+#' bucket <- random_string("bucket")
+#' links_file <- file.path(system.file(), "Meta/links.rds")
+#' six_bucket_upload(path = c(demo_rds_file, links_file),
+#'  remote = path(bucket, c("afile.txt", "anotherfile.txt")))
+six_bucket_upload <- function(path, remote, force = FALSE, ...) {
+  stop_if_not(is_character(path), "{.strong path} must be character")
+  stop_if_not(is_character(remote), "{.strong remote} must be character")
+
+  path <- explode_file_paths(path)
+  stop_if_not(
+    all(fs::file_exists(path)),
+    "one or more of {.strong path} don't exist"
+  )
+
+  if (length(remote) > 1) {
+    if (length(unique(fs::path_dir(remote))) != 1) {
+      cli_abort(paste0(c(
+        " if {.strong remote} length > 1,",
+        "first part of each path must be the same"
+      ), collapse = " "))
+    }
+  }
+
+  bucket <- bucket_name(remote)
+  bucket_create_if_not(bucket, force)
+  if (!aws_bucket_exists(bucket)) {
+    cli_warning("bucket {.strong {bucket}} not created; exiting")
+    return(invisible())
+  }
+
+  if (length(remote) == 1) {
+    remote_paths <- remote
+    if (length(path) > 1) {
+      cli_info("recycling {.strong remote} for each {.strong path}")
+      remote_paths <- rep(as.character(remote), times = length(path))
+    }
+  } else if (length(remote) > 1) {
+    if (length(path) != length(remote)) {
+      cli_abort(paste0(c("if {.strong length(remote) > 1} then ",
+        "{.strong length(path)} == {.strong length(remote)}"), collapse = " "))
+    } else {
+      remote_paths <- remote
+    }
+  }
+
+  use_remotes_for_keys <- FALSE
+  if (remote_has_keys(remote_paths)) {
+    use_remotes_for_keys <- TRUE
+  }
+
+  map2(path, remote_paths, \(pth, rem) {
+    con_s3()$put_object(
+      Bucket = bucket,
+      Key = ifelse(use_remotes_for_keys, basename(rem), basename(pth)),
+      Body = pth,
+      ...
+    )
+  })
+  s3_path(bucket, basename(path))
+}
+
 #' List objects in an S3 bucket
 #'
 #' @export

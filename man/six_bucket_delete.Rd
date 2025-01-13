@@ -71,10 +71,12 @@ Other buckets:
 \code{\link{aws_bucket_list_objects}()},
 \code{\link{aws_bucket_tree}()},
 \code{\link{aws_bucket_upload}()},
-\code{\link{aws_buckets}()}
+\code{\link{aws_buckets}()},
+\code{\link{six_bucket_upload}()}
 
 Other magicians: 
 \code{\link{six_admin_setup}()},
+\code{\link{six_bucket_upload}()},
 \code{\link{six_file_upload}()},
 \code{\link{six_user_create}()},
 \code{\link{six_user_delete}()}

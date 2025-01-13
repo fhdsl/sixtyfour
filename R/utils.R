@@ -32,6 +32,12 @@ yesno <- function(msg, .envir = parent.frame()) {
   utils::menu(qs[rand]) != which(rand == 1)
 }
 
+#' Get the first element of a vector
+#' @keywords internal
+#' @param x a vector
+#' @return the first element of the vector
+first <- function(x) x[1]
+
 #' Get the last element of a vector
 #' @keywords internal
 #' @param x a vector

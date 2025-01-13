@@ -8,7 +8,7 @@
 #' @importFrom glue glue
 #' @importFrom jsonlite toJSON fromJSON
 #' @importFrom curl curl_fetch_memory
-#' @importFrom rlang abort is_na
+#' @importFrom rlang abort is_na is_character
 ## usethis namespace: end
 NULL
 

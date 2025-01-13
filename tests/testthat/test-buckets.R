@@ -132,6 +132,50 @@ test_that("aws_bucket_tree", {
   bucket_delete(bucket, force = TRUE)
 })
 
+test_that("six_bucket_upload, single file, single remote path", {
+  bucket <- random_string("bucket")
+  demo_rds_file <- file.path(system.file(), "Meta/demo.rds")
+  res <- six_bucket_upload(path = demo_rds_file, remote = bucket, force = TRUE)
+  objs <- aws_bucket_list_objects(bucket)
+
+  expect_type(res, "character")
+  expect_length(res, 1)
+  expect_match(res, bucket)
+  expect_equal(NROW(objs), 1)
+  expect_equal(objs$key, basename(demo_rds_file))
+})
+
+test_that("six_bucket_upload, mixed inputs, single remote path", {
+  bucket <- random_string("bucket")
+  library(fs)
+  tdir <- path(path_temp(), "mytmp")
+  dir_create(tdir)
+  purrr::map(letters, \(l) file_create(path(tdir, l)))
+  res <- suppressMessages(
+    six_bucket_upload(path = c(demo_rds_file, tdir), remote = bucket,
+      force = TRUE)
+  )
+  objs <- aws_bucket_list_objects(bucket)
+
+  expect_type(res, "character")
+  expect_length(res, 27)
+  expect_match(res, bucket)
+  expect_equal(NROW(objs), 27)
+})
+
+test_that("six_bucket_upload, two inputs, two remotes", {
+  bucket <- random_string("bucket")
+  links_file <- file.path(system.file(), "Meta/links.rds")
+  res <- six_bucket_upload(path = c(demo_rds_file, links_file),
+    remote = path(bucket, c("afile.txt", "anotherfile.txt")),
+    force = TRUE)
+  objs <- aws_bucket_list_objects(bucket)
+
+  expect_type(res, "character")
+  expect_length(res, 2)
+  expect_match(res, bucket)
+  expect_equal(NROW(objs), 2)
+})
 
 # cleanup
 buckets_empty()

@@ -51,6 +51,7 @@ Other users:
 Other magicians: 
 \code{\link{six_admin_setup}()},
 \code{\link{six_bucket_delete}()},
+\code{\link{six_bucket_upload}()},
 \code{\link{six_file_upload}()},
 \code{\link{six_user_create}()}
 }

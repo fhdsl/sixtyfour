@@ -21,6 +21,7 @@ reference:
       - six_bucket_permissions
       - six_bucket_delete
       - six_file_upload
+      - six_bucket_upload
       - six_user_creds
       - group_policies
   - title: paws and s3fs clients
